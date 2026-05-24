@@ -360,6 +360,10 @@ acertar ou não o dígito real da imagem.
 | Ciclos médios por inferência | 610.580 (0x95114) |
 | Frequência máxima de operação | 12,2ms por inferência |
 
+## Referências
+
+PATTERSON, David A.; HENNESSY, John L. Computer Organization and Design: The Hardware/Software Interface. ARM® Edition. San Francisco: Morgan Kaufmann, 2016.
+
 ---
 
 # Marco 2 - Driver (Linux ARM - Assembly + C)
@@ -742,15 +746,15 @@ O arquivo `interface.c` demonstra o fluxo completo de utilização do acelerador
 ```
 inicializar_hardware()
         │
-        ▼
+        ▼ (loop de testes)
 resetar_fpga()          ← estado limpo e conhecido
         │
-        ▼
+        ▼ 
 enviarBias()            ← 128 valores × 16 bits
 enviarBeta()            ← 1.280 valores × 16 bits
 enviarPesos()           ← 100.352 valores × 16 bits
         │
-        ▼ (loop de testes)
+        ▼ 
 enviarImagem()          ← 784 pixels × 8 bits
         │
         ▼
@@ -765,7 +769,7 @@ Extração dos campos:
   contador_clock = (retorno >> 8) & 0xFFFFFF
 ```
 
-Os pesos, biases e betas são carregados apenas **uma vez** antes do loop de inferências, refletindo o comportamento real de um sistema embarcado: os parâmetros da rede são fixos e permanecem nas memórias do co-processador durante toda a sessão. Apenas a imagem de entrada é substituída a cada nova inferência.
+Na interface, o `resetar_fpga` e o carregamento completo dos parâmetros (bias, beta e pesos) estão **dentro do loop de testes**, sendo reexecutados a cada iteração. Isso garante que o co-processador parte sempre de um estado limpo e conhecido a cada inferência, o que é especialmente útil durante a fase de validação, eliminando qualquer "lixo" de execuções anteriores que pudesse mascarar erros de comportamento.
 
 ---
 

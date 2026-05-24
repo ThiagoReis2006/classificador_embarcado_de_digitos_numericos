@@ -643,6 +643,16 @@ O sinal de reset do co-processador (`signals[2]`) é independente do mecanismo d
 
 ## Driver em Assembly ARMv7
 
+O driver foi escrito inteiramente em Assembly ARMv7, seguindo a convenção de chamada ARM (APCS). Essa convenção define que os primeiros argumentos de uma função chegam pelos registradores R0 a R3, e que o valor de retorno é depositado em R0. Registradores de R4 em diante são preservados pela função chamada, então sempre que o driver precisa utilizá-los, salva seus valores na pilha com PUSH no início da função e os restaura com POP ao final. O retorno em si é feito com POP {PC}, que carrega o program counter diretamente da pilha.
+
+A primeira coisa que o driver faz é abrir o arquivo /dev/mem e mapear a região física da FPGA no espaço de endereçamento virtual do processo. Isso é feito com duas chamadas de sistema Linux invocadas diretamente via SWI 0: primeiro open, que retorna um descritor de arquivo, e depois mmap2, que usa esse descritor para mapear a parte física 0xFF200000 e retornar um ponteiro virtual. Esse ponteiro é o que todas as outras funções recebem como primeiro argumento e usam para acessar os registradores PIO da FPGA com instruções simples de STR e LDR.
+
+Toda comunicação com o co-processador segue o mesmo protocolo de três passos. Primeiro, o pacote de 32 bits é depositado no registrador data_in com uma instrução STR. Depois, o bit de enable no registrador signals é pulsado, escrevendo 1 e em seguida 0, o que sinaliza ao co-processador que há uma nova instrução para processar. Por fim, o driver fica em loop lendo data_out até que o bit de done ou o bit de erro estejam setados, usando a instrução TST para testar bits individuais sem modificar os registradores, e BNE ou BEQ para decidir se continua aguardando ou sai do loop.
+
+A composição dos pacotes de 32 bits é feita puramente com operações de bit: deslocamentos à esquerda com LSL para posicionar cada campo na faixa de bits correta, e ORR para combiná-los em um único valor de 32 bits. Para carregar os dados dos buffers, o driver usa LDRB quando o dado é um byte sem sinal, como os pixels da imagem, e LDRSH quando é um inteiro de 16 bits com sinal, como pesos, biases e betas. A diferença é importante: LDRSH faz extensão de sinal ao expandir o valor para 32 bits, preservando números negativos corretamente antes dos deslocamentos.
+
+O envio de pesos merece atenção especial porque cada peso exige dois pacotes consecutivos. O primeiro carrega apenas o endereço de destino na memória do co-processador, e o segundo carrega o valor do peso. Essa separação existe porque o endereço da memória de pesos precisa de 17 bits para cobrir as 100.352 posições, e o valor do peso ocupa 16 bits, ou seja, os dois campos juntos não cabem nos 29 bits disponíveis após o opcode de 3 bits. Entre os dois pacotes, o driver usa uma variante do loop de espera que aguarda o bit de busy zerar, em vez de aguardar o done, porque o primeiro pacote não gera done, ele apenas registra o endereço internamente na FSM e retorna ao idle.
+
 O arquivo `DriverAcelerador.s` implementa todas as funções de comunicação com o co-processador diretamente em Assembly ARMv7.
 
 ### Mapeamento de Memória

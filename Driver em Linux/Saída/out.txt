@@ -1,0 +1,324 @@
+
+--- Iniciando Execução 0 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837384
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 1 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 2 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 3 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 4 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 5 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 6 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 7 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 8 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 9 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 10 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 11 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 12 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 13 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 14 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 15 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 16 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 17 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|
+--- Iniciando Execução 18 ---
+Resetando hardware...
+Enviando Bias...
+Enviando Betas...
+Enviando W_in...
+Enviando imagem...
+
+|------------------------| 
+
+| Iniciando inferência...| 
+
+|------------------------| 
+ | Resultado: 4
+ | Erro: 0
+ | Ciclos de clock: 837388
+ | Done: 1
+|------------------------|

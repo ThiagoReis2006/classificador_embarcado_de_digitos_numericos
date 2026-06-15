@@ -900,3 +900,8 @@ Caso `fl_error` seja `1`, a causa mais provável é um índice fora dos limites 
 PATTERSON, David A.; HENNESSY, John L. Computer Organization and Design: The Hardware/Software Interface. ARM® Edition. San Francisco: Morgan Kaufmann, 2016.
 
 ---
+
+# Marco 3 — Aplicação C + Validação Completa + Métricas
+
+## Sumário
+

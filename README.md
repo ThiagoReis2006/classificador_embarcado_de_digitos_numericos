@@ -175,9 +175,9 @@ No **Marco 02**, elas serão associadas a uma interface **MMIO**.
 
 ## 5. Diagrama de Blocos
 
-O diagrama de blocos do datapath e da FSM está disponível em [`docs/diagrama_blocos.svg`](hardware/docs/Datapah+FSM.drawio.svg).
+O diagrama de blocos do datapath e da FSM está disponível em [`docs/diagrama_blocos.svg`](Núcleo%20em%20FPGA/docs/Datapah+FSM.drawio.svg).
 
-![Diagrama de Blocos](hardware/docs/Datapah+FSM.drawio.svg)
+![Diagrama de Blocos](Núcleo%20em%20FPGA/docs/Datapah+FSM.drawio.svg)
 
 ## 6. Descrição do Funcionamento do Projeto
 

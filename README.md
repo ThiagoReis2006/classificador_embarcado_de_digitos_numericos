@@ -914,13 +914,16 @@ PATTERSON, David A.; HENNESSY, John L. Computer Organization and Design: The Har
   - [Modo 1 — Inferência via Arquivo](#modo-1--inferência-via-arquivo)
   - [Modo 2 — Inferência via Desenho em Tela](#modo-2--inferência-via-desenho-em-tela)
   - [Modo 3 — Validação e Benchmark Automatizado](#modo-3--validação-e-benchmark-automatizado)
+  - [Modo 4 — Teste Repetido com Imagem Fixa](#modo-4--teste-repetido-com-imagem-fixa)
 - [Funções do `interface.c`](#funções-do-interfacec)
   - [1. Controle e Renderização VGA](#1-controle-e-renderização-vga)
   - [2. Interação e Captura do Mouse](#2-interação-e-captura-do-mouse)
   - [3. Processamento e Execução de Inferência](#3-processamento-e-execução-de-inferência)
-  - [4. Funções Estatísticas e Geração de Logs](#4-funções-estatísticas-e-geração-de-logs)
-- [Interface de Linha de Comando (CLI)](#interface-de-linha-de-comando-cli)
+  - [4. Carregamento Dinâmico de Pesos](#4-carregamento-dinâmico-de-pesos)
+  - [5. Funções Estatísticas e Geração de Logs](#5-funções-estatísticas-e-geração-de-logs)
+- [Função Assembly: `enviarPixelVGA`](#função-assembly-enviarpixelvga)
 - [Fluxo da Aplicação (`interface.c`)](#fluxo-da-aplicação-interfacec)
+- [Dataset e Script de Indexação](#dataset-e-script-de-indexação)
 - [Estrutura de Arquivos](#estrutura-de-arquivos)
 - [Como Compilar e Executar](#como-compilar-e-executar)
 - [Resultados Alcançados](#resultados-alcançados)
@@ -930,7 +933,7 @@ PATTERSON, David A.; HENNESSY, John L. Computer Organization and Design: The Har
 
 ## Visão Geral e Levantamento de Requisitos
 
-Neste marco, o problema central é a construção da camada de software completa em linguagem C que integra a experiência do usuário ao sistema de hardware acelerado. O desafio consiste em unir três frentes simultâneas: o controle de periféricos físicos (monitor VGA e mouse), a comunicação eficiente com o co-processador neural via MMIO e a geração de métricas estatísticas auditáveis. A solução deve implementar três modos funcionais distintos, com uma interface em linha de comando interativa.
+Neste marco, o problema central é a construção da camada de software completa em linguagem C que integra a experiência do usuário ao sistema de hardware acelerado. O desafio consiste em unir três frentes simultâneas: o controle de periféricos físicos (monitor VGA e mouse), a comunicação eficiente com o co-processador neural via MMIO e a geração de métricas estatísticas auditáveis. A solução implementa quatro modos funcionais distintos com uma interface de menu interativo em linha de comando.
 
 O Marco 03 exige uma aplicação em C que, sobre o driver construído no Marco 02, implemente:
 
@@ -938,22 +941,25 @@ O Marco 03 exige uma aplicação em C que, sobre o driver construído no Marco 0
 - **Modo 1** — Carregamento e inferência de imagem a partir de arquivo (`.png`).
 - **Modo 2** — Captura de desenho livre do usuário via mouse com exibição em tempo real na tela VGA.
 - **Modo 3** — Execução automatizada em lote para validação e coleta de métricas de desempenho.
-- Aceitação de parâmetros de inicialização via argumentos de linha de comando (`argc`/`argv`).
-- Implementação de driver/rotinas para captura de eventos do mouse (`/dev/input/event0`).
+- **Modo 4** — Execução repetida da inferência de uma imagem fixa para validação de estabilidade.
+- Carregamento dinâmico de pesos, bias e beta a partir de arquivos de texto via menu.
+- Implementação de rotinas para captura de eventos do mouse (`/dev/input/event0`).
 - Impressão do resultado da predição (dígito classificado) no terminal.
 - Coleta e exportação de métricas de benchmark em formato CSV para análise externa.
 
 Além disso, o enunciado exige para o repositório do Marco 03:
 
-- Código C completo e comentado com os três modos operacionais.
-- Integração do IP-Core VGA via novo registrador PIO no Platform Designer.
+- Código C completo e comentado do `interface.c` com os quatro modos operacionais.
+- Integração do IP-Core VGA via novo registrador PIO e nova função Assembly `enviarPixelVGA`.
+- Biblioteca auxiliar `stb_image.h` para leitura de arquivos PNG.
 - Arquivos de saída CSV gerados automaticamente pelo Modo 3.
+- README com detalhamento da solução, ambiente, testes e análise dos resultados.
 
 ---
 
 ## Arquitetura do Sistema
 
-O sistema do Marco 03 é organizado em quatro camadas cooperativas. A camada de aplicação em C gerencia os modos de operação e a lógica de alto nível. Abaixo dela, o driver em Assembly (Marco 02) realiza as transações MMIO com o co-processador. Em paralelo, o novo registrador VGA conecta diretamente o software ao subsistema de vídeo na FPGA.
+O sistema do Marco 03 é organizado em quatro camadas cooperativas. A camada de aplicação em C gerencia os modos de operação e a lógica de alto nível. Abaixo dela, o driver em Assembly (Marco 02) realiza as transações MMIO com o co-processador. Em paralelo, o novo registrador VGA conecta diretamente o software ao subsistema de vídeo na FPGA. Toda a comunicação de pixel é intermediada pela nova função Assembly `enviarPixelVGA`.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
@@ -964,12 +970,12 @@ O sistema do Marco 03 é organizado em quatro camadas cooperativas. A camada de 
 │   │                          │     │                           │    │
 │   │  ┌────────────────────┐  │     │  ┌─────────────────────┐  │    │
 │   │  │    interface.c     │  │     │  │    CoProcessor      │  │    │
-│   │  │  (3 modos de op.)  │  │     │  │   (FSM + Neural)    │  │    │
+│   │  │  (4 modos + menu)  │  │     │  │   (FSM + Neural)    │  │    │
 │   │  └─────────┬──────────┘  │     │  └──────────┬──────────┘  │    │
 │   │            │             │     │             │             │    │
 │   │  ┌─────────▼──────────┐  │     │  ┌──────────▼──────────┐  │    │
 │   │  │  DriverAcelerador  │  │     │  │  controller_vga_sd  │  │    │
-│   │  │    (Assembly)      │  │     │  │  (IP-Core VGA + PLL)│  │    │
+│   │  │ (Assembly + VGA fn)│  │     │  │  (IP-Core VGA + PLL)│  │    │
 │   │  └─────────┬──────────┘  │     │  └──────────┬──────────┘  │    │
 │   │            │   MMAP      │     │             │             │    │
 │   └────────────┼─────────────┘     └─────────────┼─────────────┘    │
@@ -981,24 +987,24 @@ O sistema do Marco 03 é organizado em quatro camadas cooperativas. A camada de 
 
 A comunicação entre HPS e FPGA utiliza agora **quatro registradores PIO** mapeados via Platform Designer. Os três originais do Marco 02 permanecem inalterados; um quarto foi adicionado exclusivamente para o controle do subsistema VGA:
 
-| Registrador       | Offset  | Largura  | Direção    | Função                                           |
-|:------------------|:-------:|:--------:|:----------:|:-------------------------------------------------|
+| Registrador       | Offset  | Largura  | Direção    | Função                                              |
+|:------------------|:-------:|:--------:|:----------:|:----------------------------------------------------|
 | `signals`         | `0x10`  | 3 bits   | HPS → FPGA | Controle do co-processador (`enable`, `clr`, `rst`) |
-| `data_in`         | `0x30`  | 32 bits  | HPS → FPGA | Pacote de instrução/dado para o co-processador   |
-| `data_out`        | `0x20`  | 32 bits  | FPGA → HPS | Resultado, flags de status e contador de ciclos  |
-| `vga_pio_data`    | `0x40`  | 32 bits  | HPS → FPGA | Cor, coordenada e comando de pixel para a tela   |
+| `data_in`         | `0x30`  | 32 bits  | HPS → FPGA | Pacote de instrução/dado para o co-processador      |
+| `data_out`        | `0x20`  | 32 bits  | FPGA → HPS | Resultado, flags de status e contador de ciclos     |
+| `vga_pio_data`    | `0x40`  | 32 bits  | HPS → FPGA | Cor, coordenada e comando de pixel para a tela      |
+
+O ponteiro para o registrador VGA é calculado a partir do ponteiro base já obtido no Marco 02:
+
+```c
+volatile uint32_t *ptr_vga = ptr + (0x40 / 4);
+```
 
 ---
 
 ### Expansão do Barramento: Novo Registrador VGA
 
 Para integrar o monitor VGA sem interferir na comunicação existente com o co-processador neural, um novo PIO de 32 bits de saída foi instanciado no Platform Designer e conectado à infraestrutura do `soc_system`. Esse registrador recebeu a fiação denominada `pio_vga_out_external_connection_export` e gera o barramento interno `vga_pio_data[31:0]`.
-
-O ponteiro para esse registrador é calculado a partir do ponteiro base do Marco 02, aplicando o deslocamento específico:
-
-```c
-volatile uint32_t *ptr_vga = ptr + (0x40 / 4);
-```
 
 A utilidade fundamental desse novo PIO é o **empacotamento de comandos**: todas as variáveis de controle e coordenadas de um pixel foram consolidadas em uma única palavra de 32 bits, eliminando a necessidade de múltiplas transações e reduzindo a latência de comunicação na ponte HPS-FPGA.
 
@@ -1010,11 +1016,11 @@ No arquivo Top-Level em Verilog, o barramento `vga_pio_data` é desmembrado de f
 
 A estrutura de hardware de vídeo é composta por três módulos que atuam em conjunto para gerenciar o armazenamento e a exibição de imagens no monitor:
 
-| Módulo                    | Papel                    | Descrição                                                                                                                                                                   |
-|:--------------------------|:-------------------------|:----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
-| `vga_driver`              | Driver de Vídeo          | Interface física direta com o monitor. Realiza a varredura sequencial da tela, gera os sinais `hsync` e `vsync` e fornece continuamente as coordenadas `next_x` e `next_y` do próximo pixel. |
-| `lsu_controller`          | Controlador de Memória   | Gerencia o acesso à memória síncrona de porta dupla (`altsyncram`), garantindo operações seguras de escrita e leitura dentro dos ciclos estipulados. Emite sinal `done` ao final de cada transação. |
-| `controller_vga_to_sd`    | Controlador Top-Level    | Integrador principal do subsistema de vídeo. Gerencia os clocks via PLL (100 MHz para memória e 25 MHz para VGA) e realiza a conversão das coordenadas bidimensionais em endereços lineares de memória. |
+| Módulo                 | Papel                 | Descrição                                                                                                                                                                    |
+|:-----------------------|:----------------------|:-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `vga_driver`           | Driver de Vídeo       | Interface física direta com o monitor. Realiza a varredura sequencial da tela, gera os sinais `hsync` e `vsync` e fornece continuamente as coordenadas `next_x` e `next_y` do próximo pixel. |
+| `lsu_controller`       | Controlador de Memória| Gerencia o acesso à memória síncrona de porta dupla (`altsyncram`), garantindo operações seguras de escrita e leitura dentro dos ciclos estipulados. Emite sinal `done` ao final de cada transação. |
+| `controller_vga_to_sd` | Controlador Top-Level | Integrador principal do subsistema de vídeo. Gerencia os clocks via PLL (100 MHz para memória e 25 MHz para VGA) e realiza a conversão das coordenadas bidimensionais em endereços lineares de memória. |
 
 ---
 
@@ -1030,23 +1036,23 @@ Cada escrita nesse único registrador atualiza simultaneamente a cor, a posiçã
         └──────────┴──────────┴─────────┴────────┴────────┴────────┘
 ```
 
-| Campo        | Bits      | Descrição                                                                    |
-|:-------------|:---------:|:-----------------------------------------------------------------------------|
-| `vga_enable` | `[31]`    | Sinal de habilitação. Deve estar em `1` para autorizar a escrita do pixel na memória de vídeo. |
-| `vga_posx`   | `[25:17]` | Coordenada X do pixel (eixo horizontal, resolução 320 pixels).               |
-| `vga_posy`   | `[16:9]`  | Coordenada Y do pixel (eixo vertical, resolução 240 pixels).                 |
-| `vga_red`    | `[8:6]`   | Intensidade do canal Vermelho — 3 bits de profundidade de cor (0 a 7).       |
-| `vga_green`  | `[5:3]`   | Intensidade do canal Verde — 3 bits de profundidade de cor (0 a 7).          |
-| `vga_blue`   | `[2:0]`   | Intensidade do canal Azul — 3 bits de profundidade de cor (0 a 7).           |
+| Campo        | Bits      | Descrição                                                                     |
+|:-------------|:---------:|:------------------------------------------------------------------------------|
+| `vga_enable` | `[31]`    | Sinal de habilitação. Deve estar em `1` para autorizar a escrita na memória de vídeo. |
+| `vga_posx`   | `[25:17]` | Coordenada X do pixel (eixo horizontal, resolução 320 pixels).                |
+| `vga_posy`   | `[16:9]`  | Coordenada Y do pixel (eixo vertical, resolução 240 pixels).                  |
+| `vga_red`    | `[8:6]`   | Intensidade do canal Vermelho — 3 bits de profundidade de cor (0 a 7).        |
+| `vga_green`  | `[5:3]`   | Intensidade do canal Verde — 3 bits de profundidade de cor (0 a 7).           |
+| `vga_blue`   | `[2:0]`   | Intensidade do canal Azul — 3 bits de profundidade de cor (0 a 7).            |
 
-A montagem do pacote em C é feita por deslocamento e OR bit a bit:
+A montagem do pacote em C é feita por deslocamento e OR bit a bit, e o envio é delegado à função Assembly `enviarPixelVGA`:
 
 ```c
 uint32_t pacote = (1 << 31) | (x << 17) | (y << 9) | (r << 6) | (g << 3) | b;
-*ptr_vga = pacote;
+enviarPixelVGA(ptr_vga, pacote);
 ```
 
-O array bidimensional `tela_virtual[240][320]` atua como um framebuffer em software, guardando o estado atual de cada pixel para possibilitar a restauração quando o cursor do mouse passa por cima do conteúdo desenhado.
+O array bidimensional `tela_virtual[240][320]` (tipo `uint16_t`) atua como um framebuffer em software, guardando o estado de cor de cada pixel no formato `(r << 6) | (g << 3) | b` para possibilitar a restauração quando o cursor passa por cima do conteúdo desenhado.
 
 ---
 
@@ -1058,7 +1064,7 @@ O array bidimensional `tela_virtual[240][320]` atua como um framebuffer em softw
 Início
    │
    ▼
-Solicita caminho do arquivo PNG no terminal (ou via argv)
+Solicita caminho do arquivo PNG no terminal
    │
    ▼
 ler_png_para_vetor()       ← stb_image.h: abre PNG, valida 28×28, converte para cinza
@@ -1067,8 +1073,14 @@ ler_png_para_vetor()       ← stb_image.h: abre PNG, valida 28×28, converte pa
 limpar_tela_vga()          ← varre 320×240, envia preto para o monitor
    │
    ▼
-exibir_imagem_vga()        ← ampliação 8×8: cada pixel vira um bloco de 64 pixels na tela
+exibir_imagem_vga()        ← ampliação 8×8: cada pixel vira bloco 8×8 em x=[48,271] y=[8,231]
                               converte escala de cinza [0,255] → RGB333 [0,7]
+   │
+   ▼
+sleep(ATRASO_VGA_S)        ← exibe imagem por 2 segundos antes da inferência
+   │
+   ▼
+resetar_fpga()             ← pesos/bias/beta já carregados em main(); apenas reseta flags
    │
    ▼
 enviarImagem()             ← 784 pacotes para o co-processador (driver Assembly)
@@ -1077,7 +1089,7 @@ enviarImagem()             ← 784 pacotes para o co-processador (driver Assembl
 iniciar_inferencia()       ← dispara co-processador, aguarda done via polling
    │
    ▼
-Imprime resultado no terminal: dígito predito, ciclos de clock, flags de status
+Imprime resultado no terminal: dígito predito, ciclos de clock, flags de status e erro
 ```
 
 ### Modo 2 — Inferência via Desenho em Tela
@@ -1086,31 +1098,31 @@ Imprime resultado no terminal: dígito predito, ciclos de clock, flags de status
 Início
    │
    ▼
-Inicializa hardware e carrega parâmetros da rede neural (pesos, bias, beta)
-   │
-   ▼
-limpar_tela_vga()          ← limpa o monitor para a sessão de desenho
-   │
-   ▼
 capturar_desenho_mouse()   ← abre /dev/input/event0 em modo não-bloqueante
+   │                           zera imagem_desenhada[784] e limpa tela VGA
    │
-   ├──► Evento REL_X / REL_Y → move cursor (desenhar_cursor / apagar_cursor)
+   ├──► Evento REL_X / REL_Y → acumula deslocamento relativo e seta flag moveu=1
    │
-   ├──► BTN_LEFT pressionado → ativa modo de desenho:
-   │         desenhar_linha() (Bresenham) entre posição anterior e atual
-   │         registrar_ponto() → mapeia pixel de tela para matriz 28×28
-   │                              aplica espessamento de traço (pixels vizinhos)
+   ├──► Quando moveu=1 (loop de espera):
+   │         apagar_cursor()   → restaura pixels originais da tela_virtual
+   │         desenhar_linha()  → Bresenham entre posição antiga e nova
+   │              └──► registrar_ponto() → pinta bloco 8×8 branco na tela VGA
+   │                                       e marca pixel + 4 vizinhos na imagem_desenhada
+   │         desenhar_cursor() → pinta cruz vermelha ±3 px na nova posição
    │
-   └──► BTN_RIGHT pressionado → finaliza captura
-   │
-   ▼
-printar_matriz_desenhada() ← exibe representação textual no terminal
-   │
-   ▼
-enviarImagem() + iniciar_inferencia()
+   └──► BTN_RIGHT pressionado → finaliza captura, fecha /dev/input/event0
    │
    ▼
-Imprime dígito predito no terminal
+printar_matriz_desenhada() ← exibe representação textual 28×28 no terminal
+   │
+   ▼
+enviarImagem(ptr, imagem_desenhada)
+   │
+   ▼
+iniciar_inferencia()
+   │
+   ▼
+Imprime: predição, erro e ciclos de clock
 ```
 
 ### Modo 3 — Validação e Benchmark Automatizado
@@ -1119,35 +1131,63 @@ Imprime dígito predito no terminal
 Início
    │
    ▼
-Carrega dataset.txt        ← arquivo de índice com caminhos e classes reais
+Solicita caminho do arquivo dataset.txt
    │
    ▼
-Carrega parâmetros da rede (W_in, bias, beta) — uma única vez
+Abre benchmark_resultados.csv ← grava cabeçalho de 8 colunas
    │
    ▼
-Loop sobre cada imagem do lote:
+limpar_tela_vga()
+   │
+   ▼
+Loop: fscanf(arquivo_index, "%s %d", caminho_imagem, &classe_real)
    │
    ├──► ler_png_para_vetor()
    ├──► exibir_imagem_vga()        ← atualiza monitor a cada imagem
+   ├──► sleep(ATRASO_VGA_S / 2)    ← pausa de 1 segundo por imagem
+   ├──► resetar_fpga()
    ├──► enviarImagem()
    │
-   ├──► clock_gettime(CLOCK_MONOTONIC) ← marca t0 (ns)
+   ├──► clock_gettime(CLOCK_MONOTONIC) ← marca t_ini (ns)
    ├──► iniciar_inferencia()
-   ├──► clock_gettime(CLOCK_MONOTONIC) ← marca t1 (ns)
+   ├──► clock_gettime(CLOCK_MONOTONIC) ← marca t_fim (ns)
    │
-   ├──► Registra: classe real, classe predita, ciclos de HW, latência (t1-t0)
-   └──► Grava linha em benchmark_resultados.csv
+   ├──► latencia = (t_fim - t_ini) em segundos
+   ├──► throughput_inst = 1.0 / latencia
+   └──► Grava linha em benchmark_resultados.csv (8 colunas)
    │
    ▼
 Cálculo das métricas globais:
-   Acurácia (%) · Latência Média · Desvio Padrão amostral · Throughput (img/s)
+   Acurácia (%) · Latência Média · Desvio Padrão · Throughput global (img/s)
    │
    ▼
-Grava benchmark_métricas.csv
+Grava benchmark_métricas.csv (4 colunas)
    │
    ▼
-Exibe resumo final no terminal
+Exibe RELATÓRIO FINAL DE BENCHMARK no terminal
 ```
+
+### Modo 4 — Teste Repetido com Imagem Fixa
+
+```
+Início
+   │
+   ▼
+Solicita o número de testes a realizar
+   │
+   ▼
+limpar_tela_vga() + exibir_imagem_vga(imagem7) + sleep(ATRASO_VGA_S)
+   │
+   ▼
+Loop N vezes:
+   ├──► resetar_fpga()
+   ├──► enviarBias()  enviarBeta()  enviarPesos()   ← recarrega parâmetros a cada iteração
+   ├──► enviarImagem(imagem7)
+   ├──► iniciar_inferencia()
+   └──► Imprime resultado, erro, ciclos e done
+```
+
+> **Nota:** O Modo 4 é o único que recarrega os parâmetros da rede (bias, beta, pesos) a cada iteração dentro do loop, partindo sempre de um estado limpo. Nos Modos 1, 2 e 3, os parâmetros são carregados **uma única vez** no início da `main()`.
 
 ---
 
@@ -1155,142 +1195,200 @@ Exibe resumo final no terminal
 
 ### 1. Controle e Renderização VGA
 
-Este bloco interage diretamente com o registrador `vga_pio_data` de 32 bits, traduzindo comandos de software em atualizações visuais na tela.
+Este bloco interage com o registrador `vga_pio_data` via `enviarPixelVGA`, traduzindo comandos de software em atualizações visuais na tela.
 
-#### `pintar_pixel_vga(x, y, r, g, b, ptr_vga)`
-Função base de desenho. Recebe as coordenadas X/Y e os componentes RGB (3 bits por canal), realiza o empacotamento binário por deslocamento de bits e escreve o pacote no registrador da FPGA. Salva simultaneamente a cor no array `tela_virtual[y][x]` para manter o histórico do conteúdo em tela.
+#### `pintar_pixel_vga(ptr_vga, x, y, r, g, b)`
+Função base de desenho. Valida os limites da tela (x ∈ [0,319], y ∈ [0,239]), monta o pacote de 32 bits e chama `enviarPixelVGA`. Salva simultaneamente a cor no array `tela_virtual[y][x]` como `(r << 6) | (g << 3) | b` para manter o framebuffer em software.
 
-#### `exibir_imagem_vga(imagem, ptr_vga)`
-Exibe a matriz de entrada 28×28 no monitor. Como a resolução é pequena para a tela de 320×240, aplica uma **ampliação de 8×8**: cada pixel original vira um bloco de 8×8 pixels centralizado no monitor (região de 224×224 pixels). Converte proporcionalmente a escala de cinza de 8 bits `[0, 255]` para o padrão RGB333 `[0, 7]` suportado pelo driver de hardware.
+#### `restaurar_pixel_vga(ptr_vga, x, y)`
+Lê a cor salva em `tela_virtual[y][x]`, decompõe os campos RGB e reescreve o pixel na tela. Usada pelo `apagar_cursor` para recuperar o conteúdo sob o cursor.
+
+#### `exibir_imagem_vga(ptr_vga, imagem[784])`
+Renderiza a matriz 28×28 no monitor com **ampliação de 8×8**, mapeando cada pixel original em um bloco de 8×8 pixels físicos. A região exibida é `x=[48, 271], y=[8, 231]` (224×224 pixels centralizados no display de 320×240). O valor de cinza `[0, 255]` é convertido para RGB333 `[0, 7]` pela fórmula `intensidade = (pixel * 7) / 255`. A imagem é exibida em tons de cinza (R = G = B = intensidade).
 
 #### `limpar_tela_vga(ptr_vga)`
-Varre todas as posições da tela (320×240 = 76.800 pixels) enviando a cor preta `(R=0, G=0, B=0)` antes de uma nova exibição.
+Varre todas as 76.800 posições da tela (320×240) enviando a cor preta `(R=0, G=0, B=0)` via `pintar_pixel_vga`.
 
-#### `desenhar_cursor(x, y, ptr_vga)` e `apagar_cursor(x, y, ptr_vga)`
-Criam o efeito visual do cursor. `desenhar_cursor` pinta uma cruz branca temporária ao redor da posição atual. `apagar_cursor` chama `restaurar_pixel_vga`, que consulta `tela_virtual` para reescrever na tela o conteúdo original que estava sob o cursor, evitando que o movimento do mouse apague o desenho do usuário.
+#### `desenhar_cursor(ptr_vga, cx, cy)`
+Pinta uma cruz **vermelha** de ±3 pixels ao redor de `(cx, cy)`. O pacote enviado ativa apenas o canal vermelho (`7 << 6`), deixando verde e azul em zero.
+
+#### `apagar_cursor(ptr_vga, cx, cy)`
+Percorre a mesma cruz ±3 pixels e chama `restaurar_pixel_vga` para cada posição, recuperando o conteúdo original da `tela_virtual` e removendo visualmente o cursor sem apagar o desenho do usuário.
 
 ---
 
 ### 2. Interação e Captura do Mouse
 
-Rotinas que tratam a leitura do periférico físico e o processamento geométrico dos traços feitos na tela.
-
 #### `capturar_desenho_mouse(ptr_vga)`
-Abre o arquivo de eventos do Linux `/dev/input/event0` em **modo não-bloqueante**. Entra em loop contínuo interpretando eventos de deslocamento relativo (`REL_X`, `REL_Y`) e estado de botões. O clique esquerdo ativa o modo de desenho; o clique direito finaliza a captura e retorna o controle ao menu.
+Abre `/dev/input/event0` com `O_RDONLY | O_NONBLOCK`. Inicializa o cursor no centro da tela `(160, 120)` e zera `imagem_desenhada[784]`. O loop processa eventos de dois tipos:
 
-#### `desenhar_linha(x0, y0, x1, y1, ptr_vga)`
-Implementa o **Algoritmo de Bresenham**. Quando o mouse é movido rapidamente, o SO não captura todos os pixels individuais, gerando pontos saltados. Esta função calcula matematicamente a trajetória e preenche os espaços vazios entre a posição anterior e a nova posição, garantindo traços contínuos.
+- `EV_REL` (`REL_X`, `REL_Y`): acumula deslocamento relativo, aplica clamp `[0,319]` × `[0,239]` e seta flag `moveu=1`.
+- `EV_KEY` (`BTN_LEFT`): ativa/desativa o modo de desenho; `BTN_RIGHT` encerra a captura.
 
-#### `registrar_ponto(x, y)`
-Realiza o **mapeamento inverso** da tela para a matriz 28×28. Quando o mouse passa pela região central de desenho (224×224 pixels), calcula a qual célula da matriz `imagem_desenhada[784]` aquela posição corresponde e salva o valor `255` (branco). Aplica **espessamento de traço**, pintando também os pixels imediatamente acima, abaixo, à esquerda e à direita do ponto central, para melhorar a acurácia da rede neural com traços finos.
+Quando não há eventos (`usleep(1000)`), se `moveu=1`, apaga o cursor na posição antiga, interpola a linha (se desenhando) e redesenha o cursor na nova posição.
+
+#### `desenhar_linha(ptr_vga, x0, y0, x1, y1)`
+Implementa o **Algoritmo de Bresenham** para preencher os pixels intermediários entre a posição anterior e a nova posição do mouse, garantindo traços contínuos mesmo com movimentos rápidos. Para cada ponto da trajetória, chama `registrar_ponto`.
+
+#### `registrar_ponto(ptr_vga, mouse_x, mouse_y)`
+Realiza o **mapeamento inverso** da tela para a grade 28×28. Quando o mouse está dentro da região de desenho `x=[48,271], y=[8,231]`, calcula a célula da grade `nn_x = (mouse_x - 48) / 8` e `nn_y = (mouse_y - 8) / 8` e pinta o bloco 8×8 correspondente inteiramente de branco na tela VGA. No vetor `imagem_desenhada`, marca o pixel central e os 4 pixels vizinhos (acima, abaixo, esquerda, direita) com o valor `255`, aplicando o espessamento de traço.
 
 ---
 
 ### 3. Processamento e Execução de Inferência
 
-Funções que integram a lógica dos três modos de operação ao co-processador neural.
-
 #### `enviarImagemArquivo(ptr, ptr_vga)` — Modo 1
-Solicita o caminho de uma imagem no terminal, utiliza `stb_image.h` via `ler_png_para_vetor` para converter o PNG em vetor de bytes, renderiza o resultado ampliado no monitor VGA e envia os dados para o co-processador neural, exibindo o veredito no console.
+Solicita o caminho de uma imagem PNG no terminal, carrega via `ler_png_para_vetor`, exibe no monitor VGA com pausa de `ATRASO_VGA_S` segundos, reseta o co-processador e executa a inferência. Imprime resultado, erro, ciclos de clock e done.
 
 #### `desenharVGA(ptr, ptr_vga)` — Modo 2
-Prepara o hardware carregando os parâmetros da rede neural, invoca a rotina de captura do mouse para que o usuário desenhe na tela VGA, exibe a representação em texto da matriz via `printar_matriz_desenhada` e submete a imagem gerada para classificação pelo co-processador.
+Invoca `capturar_desenho_mouse` para a sessão de desenho, exibe a matriz em texto via `printar_matriz_desenhada`, e submete `imagem_desenhada` ao co-processador. Imprime a predição, erro e ciclos.
 
 #### `modoBenchmarkEValidacao(ptr, ptr_vga)` — Modo 3
-Lê em lote o arquivo `dataset.txt` contendo caminhos de imagens e suas classes reais. Para cada imagem, atualiza o monitor VGA, transmite os dados à FPGA e dispara o co-processador. Utiliza `clock_gettime(CLOCK_MONOTONIC)` para medir com precisão de **nanossegundos** o tempo de resposta do hardware de forma isolada.
+Lê o `dataset.txt` linha a linha no formato `caminho_imagem.png classe_real`. Para cada imagem, exibe no monitor, mede com `clock_gettime(CLOCK_MONOTONIC)` o tempo exclusivo da inferência em nanossegundos, e grava o resultado imediatamente nos arquivos CSV.
+
+#### `inferenciaComImagemQualquer(ptr, ptr_vga, n)` — Modo 4
+Exibe `imagem7` no monitor e repete N vezes o ciclo completo de reset + carregamento de parâmetros + envio de imagem + inferência, imprimindo o resultado a cada iteração.
 
 ---
 
-### 4. Funções Estatísticas e Geração de Logs
+### 4. Carregamento Dinâmico de Pesos
 
-Processam os dados acumulados no Modo 3 e exportam os resultados conforme os requisitos do projeto.
+As opções 5, 6 e 7 do menu permitem substituir os parâmetros da rede em tempo de execução, lendo novos valores de arquivos de texto (um inteiro por linha).
 
-**Métricas calculadas ao final do lote:**
+#### `carregar_pesos_txt(caminho, vetor, tamanho)`
+Abre o arquivo e lê `tamanho` inteiros via `fscanf`. Retorna `0` em sucesso ou `-1` em erro.
 
-| Métrica              | Descrição                                                                                      |
-|:---------------------|:-----------------------------------------------------------------------------------------------|
-| **Acurácia Global**  | Percentual de acertos: `(nº acertos / total de imagens) × 100`.                               |
-| **Latência Média**   | Tempo médio de resposta do hardware por imagem em segundos.                                    |
-| **Desvio Padrão**    | Desvio padrão amostral da latência — mede a consistência do tempo de resposta.                 |
-| **Throughput**       | Quantidade de imagens classificadas por segundo: `1 / latência_média`.                        |
+#### `carregarBiasDinamico(ptr)` — Opção 5
+Solicita o caminho do arquivo de bias (128 valores), carrega com `carregar_pesos_txt` e envia ao co-processador via `enviarBias`.
 
-**Arquivos CSV gerados automaticamente:**
+#### `carregarBetaDinamico(ptr)` — Opção 6
+Solicita o caminho do arquivo de beta (1.280 valores), carrega e envia via `enviarBeta`.
 
-`benchmark_resultados.csv` — histórico individual de cada imagem testada:
-
-| Coluna            | Conteúdo                                   |
-|:------------------|:-------------------------------------------|
-| `ID`              | Índice sequencial da imagem no lote        |
-| `Arquivo`         | Caminho do arquivo PNG processado          |
-| `Classe Real`     | Dígito real esperado (ground truth)        |
-| `Classe Predita`  | Dígito retornado pelo co-processador       |
-| `Ciclos HW`       | Contador de ciclos de clock do hardware    |
-| `Latência (s)`    | Tempo de inferência medido em segundos     |
-| `Status`          | `"CORRETO"` ou `"ERRADO"`                  |
-
-`benchmark_métricas.csv` — linha de resumo global do lote:
-
-| Coluna               | Conteúdo                                   |
-|:---------------------|:-------------------------------------------|
-| `Acurácia (%)`       | Percentual de acertos sobre o lote         |
-| `Latência Média (s)` | Média dos tempos de inferência             |
-| `Desvio Padrão (s)`  | Desvio padrão amostral da latência         |
-| `Throughput (img/s)` | Imagens processadas por segundo            |
+#### `carregarPesosEntradaDinamico(ptr)` — Opção 7
+Solicita o caminho do arquivo de pesos W_in (100.352 valores). Usa `malloc` para alocação dinâmica, evitando estouro de pilha, e envia via `enviarPesos`. A memória é liberada com `free` ao final.
 
 ---
 
-## Interface de Linha de Comando (CLI)
+### 5. Funções Estatísticas e Geração de Logs
 
-O programa aceita parâmetros de inicialização via `argc`/`argv`, permitindo passar o caminho de uma imagem diretamente sem interação no menu:
+Calculadas ao final do lote no Modo 3:
 
-```bash
-# Execução interativa (menu de modos)
-./interface
+| Métrica              | Fórmula aplicada                                                                          |
+|:---------------------|:------------------------------------------------------------------------------------------|
+| **Acurácia Global**  | `(acertos / total_imagens) × 100`                                                        |
+| **Latência Média**   | `soma_latencias / total_imagens`                                                          |
+| **Desvio Padrão**    | `sqrt(E[X²] − E[X]²)` → `sqrt((soma_quadrados / n) − (media)²)`                         |
+| **Throughput Global**| `total_imagens / soma_latencias`                                                          |
 
-# Execução direta com imagem pré-definida (Modo 1)
-./interface /caminho/para/imagem.png
+**`benchmark_resultados.csv`** — linha por imagem testada:
 
-# Execução do benchmark com dataset
-./interface --benchmark dataset.txt
+| Coluna                        | Conteúdo                                                  |
+|:------------------------------|:----------------------------------------------------------|
+| `id`                          | Índice sequencial da imagem no lote                       |
+| `imagem`                      | Caminho do arquivo PNG processado                         |
+| `classe_real`                 | Dígito real esperado (ground truth)                       |
+| `classe_predita`              | Dígito retornado pelo co-processador                      |
+| `ciclos_hardware`             | Contador de ciclos de clock do hardware                   |
+| `latencia_software_segundos`  | Tempo de inferência medido em segundos (9 casas decimais) |
+| `throughput_ips`              | Throughput instantâneo desta imagem (imagens/segundo)     |
+| `status`                      | `"CORRETO"` ou `"ERRADO"`                                 |
+
+**`benchmark_métricas.csv`** — linha única de resumo global:
+
+| Coluna           | Conteúdo                                          |
+|:-----------------|:--------------------------------------------------|
+| `acurácia`       | Percentual de acertos sobre o lote (2 decimais)   |
+| `latência média` | Média dos tempos de inferência (6 decimais)       |
+| `desvio`         | Desvio padrão da latência (6 decimais)            |
+| `throughput`     | Imagens processadas por segundo (2 decimais)      |
+
+---
+
+## Função Assembly: `enviarPixelVGA`
+
+Adicionada ao `DriverAcelerador.s` para gerenciar a comunicação com o PIO do VGA. Recebe o endereço já calculado `ptr_vga` e o pacote de 32 bits pré-montado em C.
+
+```asm
+@ R0: Endereço do ponteiro do PIO do VGA (ptr_vga)
+@ R1: Pacote de 32 bits formatado (enable=1, X, Y, R, G, B)
+enviarPixelVGA:
+    STR R1, [R0]    @ Escreve o pacote no PIO (Enable=1 → ativa escrita)
+    MOV R2, #0
+    STR R2, [R0]    @ Escreve 0 no PIO (pulso: Enable volta a 0)
+    BX LR
 ```
 
-Internamente, os argumentos são tratados no início da `main` antes de invocar `inicializar_hardware()`, redirecionando automaticamente para o modo correspondente sem exibir o menu.
+Declarada no `APIdriverFPGA.h`:
+
+```c
+void enviarPixelVGA(volatile uint32_t *base_vga, uint32_t pacote);
+```
 
 ---
 
 ## Fluxo da Aplicação (`interface.c`)
 
 ```
-main(argc, argv)
+main()
         │
         ▼
-inicializar_hardware()     ← mmap /dev/mem → base ptr (Marco 02)
+inicializar_hardware()     ← syscall open("/dev/mem", O_RDWR) + mmap2 → ptr base
         │
         ▼
-ptr_vga = ptr + (0x40 / 4) ← ponteiro para o novo registrador VGA
+ptr_vga = ptr + (0x40 / 4) ← ponteiro para o registrador VGA
         │
         ▼
-[verificar argc/argv]
+resetar_fpga(ptr)
+enviarBias(ptr, vetor_Bias)
+enviarBeta(ptr, vetor_Beta)
+enviarPesos(ptr, vetor_W_in)   ← parâmetros carregados UMA VEZ
         │
         ▼
-┌───────────────────────────────────┐
-│          Menu Interativo          │
-│  1 - Inferência via Arquivo       │
-│  2 - Desenho em Tela (Mouse+VGA)  │
-│  3 - Benchmark / Validação        │
-│  0 - Sair                         │
-└────────────────┬──────────────────┘
-                 │
-        ┌────────┼────────┐
-        ▼        ▼        ▼
-    Modo 1    Modo 2   Modo 3
-  (arquivo) (desenho) (benchmark)
-        │        │        │
-        └────────┼────────┘
-                 │
-                 ▼
-          Imprime resultado
-          no terminal + CSV (Modo 3)
+┌───────────────────────────────────────┐
+│             MENU INTERATIVO           │
+│  [1] Inferência via Arquivo           │
+│  [2] Inferência via Desenho (VGA)     │
+│  [3] Benchmark / Validação            │
+│  [4] Testar imagem N vezes            │
+│  [5] Carregar Bias de arquivo         │
+│  [6] Carregar Beta de arquivo         │
+│  [7] Carregar Pesos de entrada        │
+│  [8] Sair                             │
+└───────────────┬───────────────────────┘
+                │
+        ┌───────┼───────┬───────┬───────┐
+        ▼       ▼       ▼       ▼       ▼
+    Modo 1  Modo 2  Modo 3  Modo 4  Op.5/6/7
+  (arquivo)(mouse) (batch)(fixo N) (pesos)
+        │       │       │       │       │
+        └───────┴───────┴───────┴───────┘
+                        │
+                        ▼
+                 Imprime resultado / CSV
+                 Retorna ao menu
+```
+
+---
+
+## Dataset e Script de Indexação
+
+O arquivo `dataset.txt` é o índice de imagens utilizado pelo Modo 3. Cada linha contém o caminho relativo da imagem e sua classe real separados por espaço:
+
+```
+src/dataset_teste/1748_0.png 0
+src/dataset_teste/312_0.png 0
+src/dataset_teste/3073_1.png 1
+src/dataset_teste/199_2.png 2
+...
+```
+
+As imagens seguem a convenção de nomenclatura `{id_mnist}_{classe}.png` e residem em `src/dataset_teste/`. O dataset de exemplo fornecido contém 99 imagens cobrindo os dígitos de 0 a 9.
+
+O script `scriptParaTeste.py` automatiza a geração do `dataset.txt` a partir de uma pasta organizada por subpastas de classe (0 a 9), respeitando um limite configurável de imagens por dígito (`LIMITE_POR_CLASSE = 200`):
+
+```bash
+python3 scriptParaTeste.py
+# Saída: dataset.txt com até 200 imagens por classe
 ```
 
 ---
@@ -1298,25 +1396,27 @@ ptr_vga = ptr + (0x40 / 4) ← ponteiro para o novo registrador VGA
 ## Estrutura de Arquivos
 
 ```
-.
-├── hardware/
-│   ├── ghrd_top.v                  # Top-level da DE1-SoC: integra HPS, co-processador e VGA
-│   ├── CoProcessor.v               # Co-processador neural: FSM, memórias, neural_unit
-│   ├── controller_vga_to_sd.v      # Controlador top-level do subsistema VGA (PLL + mapeamento)
-│   ├── vga_driver.v                # Driver VGA: geração de hsync, vsync e coordenadas
-│   └── lsu_controller.v            # Controlador de acesso à memória dual-port do VGA
+Driver/
+├── include/
+│   ├── APIdriverFPGA.h         # Declarações C das funções Assembly (inclui enviarPixelVGA)
+│   ├── dados_imagem.h          # Imagens de teste embutidas (ex: imagem7)
+│   ├── pesos.h                 # Pesos, biases e betas da rede neural (vetores C)
+│   └── stb_image.h             # Biblioteca para leitura de arquivos PNG
 │
-├── software/
-│   ├── interface.c                 # Aplicação principal — os três modos de operação
-│   ├── APIdriverFPGA.h             # Declarações C das funções Assembly do Marco 02
-│   ├── DriverAcelerador.s          # Driver de baixo nível em Assembly ARMv7
-│   ├── stb_image.h                 # Biblioteca auxiliar para leitura de imagens PNG
-│   ├── pesos.h                     # Pesos, biases e betas da rede neural (vetores C)
-│   └── dataset.txt                 # Arquivo de índice com caminhos e classes reais (Modo 3)
+├── src/
+│   ├── asm/
+│   │   └── DriverAcelerador.s  # Driver ARMv7: funções de comunicação MMIO + enviarPixelVGA
+│   ├── dataset_teste/          # Imagens PNG 28×28 no formato {id_mnist}_{classe}.png
+│   ├── dataset.txt             # Índice do dataset (caminho + classe real por linha)
+│   └── interface.c             # Aplicação principal — menu + 4 modos + carregamento dinâmico
 │
-└── output/
-    ├── benchmark_resultados.csv    # Log individual de cada inferência do Modo 3
-    └── benchmark_métricas.csv      # Métricas globais consolidadas do lote de benchmark
+├── obj/
+│   ├── DriverAcelerador.o      # Objeto compilado do Assembly
+│   └── interface.o             # Objeto compilado do C
+│
+├── driver_fpga                 # Executável final gerado pelo make
+├── makefile                    # Script de build (gcc + flags -lm -lrt)
+└── scriptParaTeste.py          # Script Python para gerar dataset.txt
 ```
 
 ---
@@ -1330,7 +1430,7 @@ ptr_vga = ptr + (0x40 / 4) ← ponteiro para o novo registrador VGA
 - Monitor VGA e mouse USB conectados fisicamente à placa.
 - `gcc` disponível nativamente na placa.
 
-### Compilação e Execução (diretamente na DE1-SoC)
+### Compilação via Makefile (diretamente na DE1-SoC)
 
 Conecte-se à placa via SSH e eleve seus privilégios:
 
@@ -1339,58 +1439,79 @@ ssh <usuario>@<IP_DA_PLACA>
 sudo su
 ```
 
-Compile o projeto (driver Assembly + aplicação C):
+Compile o projeto com o Makefile fornecido:
 
 ```bash
-gcc DriverAcelerador.s interface.c -o interface -lm
+make
 ```
 
-> A flag `-lm` é necessária para as funções matemáticas utilizadas no cálculo do desvio padrão (`sqrt`).
-
-Execute em modo interativo:
+O Makefile compila `src/interface.c` e `src/asm/DriverAcelerador.s`, gera os objetos em `obj/` e linka o executável `driver_fpga` com as flags `-lm -lrt`. Para limpar os artefatos gerados:
 
 ```bash
-./interface
+make clean
 ```
 
-Execute diretamente o Modo 3 (benchmark):
+Execute o programa:
 
 ```bash
-./interface --benchmark dataset.txt
+./driver_fpga
+```
+
+### Saída Esperada — Menu Inicial
+
+```
+---------------------------[MENU]---------------------------
+
+| [1] MODO DE IMAGEM DE UM ARQUIVO                         |
+| [2] MODO DE IMAGEM DESENHADA NA TELA                     |
+| [3] MODO DE VALIDAÇÃO/BENCHMARK                          |
+| [4] TESTAR UMA IMAGEM ALGUMAS VEZES                      |
+| [5] CARREGAR BIAS                                        |
+| [6] CARREGAR BETA                                        |
+| [7] CARREGAR PESOS DE ENTRADA                            |
+| [8] SAIR                                                 |
+------------------------------------------------------------
+Escolha uma opção:
 ```
 
 ### Saída Esperada — Modo 1
 
 ```
-Digite o caminho da imagem PNG (28x28): ./imagens/digito_7.png
-Exibindo imagem no monitor VGA...
-Enviando imagem para o co-processador...
-Iniciando inferência...
+Digite o caminho da imagem: ./src/dataset_teste/301_7.png
 
- | Resultado predito : 7
- | Ciclos de clock   : 610580
- | Erro              : 0
- | Done              : 1
+Exibindo imagem no VGA...
+
+Resetando hardware...
+
+|-------------------------|
+| Iniciando inferência... |
+|-------------------------|
+| Resultado: 7
+| Erro: 0
+| Ciclos de clock: 610580
+| Done: 1
+|-------------------------|
 ```
 
 ### Saída Esperada — Modo 3
 
 ```
-Iniciando benchmark com 500 imagens...
-[001/500] Real: 3  Predito: 3  Latência: 0.000122s  [CORRETO]
-[002/500] Real: 7  Predito: 7  Latência: 0.000119s  [CORRETO]
-[003/500] Real: 1  Predito: 4  Latência: 0.000121s  [ERRADO]
-...
+Digite o caminho do arquivo de índice do dataset (ex: dataset.txt): dataset.txt
 
-===== MÉTRICAS FINAIS =====
-Acurácia        : 94.60%
-Latência Média  : 0.000121s
-Desvio Padrão   : 0.000003s
-Throughput      : 8264.46 img/s
+Iniciando processamento em lote...
 
-Relatórios exportados:
-  → benchmark_resultados.csv
-  → benchmark_métricas.csv
+============================================================
+              RELATÓRIO FINAL DE BENCHMARK
+============================================================
+ Total de imagens processadas : 99
+ Total de acertos             : 94
+ Acurácia Global              : 94.95 %
+------------------------------------------------------------
+ Latência Média de Software   : 0.000121s (0.12 ms)
+ Desvio Padrão da Latência    : 0.000003s
+ Throughput (Vazão)           : 8264.46 imagens/segundo
+============================================================
+Resultados detalhados salvos em 'benchmark_resultados.csv'
 ```
 
 ---
@@ -1399,28 +1520,31 @@ Relatórios exportados:
 
 ### Ambiente de Execução
 
-| Componente     | Descrição                                              |
-|:---------------|:-------------------------------------------------------|
-| **Linguagem**  | C (aplicação), Assembly ARMv7 (driver de baixo nível)  |
-| **Compilador** | GCC (ARM nativo na DE1-SoC)                            |
-| **S.O.**       | Linux embarcado no HPS (ARM Cortex-A9)                 |
-| **Hardware**   | DE1-SoC — Cyclone V (5CSEMA5F31C6) + Cortex-A9        |
-| **Periféricos**| Monitor VGA (320×240, RGB333) + Mouse USB              |
+| Componente      | Descrição                                                 |
+|:----------------|:----------------------------------------------------------|
+| **Linguagem**   | C (`interface.c`) + Assembly ARMv7 (`DriverAcelerador.s`) |
+| **Compilador**  | GCC (ARM nativo na DE1-SoC) com flags `-Wall -O2 -std=c99`|
+| **Linkagem**    | `-lm` (funções matemáticas) + `-lrt` (relógio POSIX)      |
+| **S.O.**        | Linux embarcado no HPS (ARM Cortex-A9)                    |
+| **Hardware**    | DE1-SoC — Cyclone V (5CSEMA5F31C6) + Cortex-A9           |
+| **Periféricos** | Monitor VGA (320×240, RGB333) + Mouse USB                 |
 
 ### Renderização VGA
 
-A imagem de entrada 28×28 é exibida no monitor com **ampliação de 8×8**, ocupando uma região de 224×224 pixels centralizada na tela de 320×240. A conversão de escala de cinza `[0, 255]` para o padrão RGB333 `[0, 7]` é feita proporcionalmente. O modo de desenho exibe o traço do usuário em tempo real, preenchendo os espaços entre amostras com o algoritmo de Bresenham.
+A imagem de entrada 28×28 é exibida no monitor com ampliação de 8×8, ocupando a região `x=[48,271], y=[8,231]` (224×224 pixels centralizados). A conversão de escala de cinza `[0, 255]` para RGB333 `[0, 7]` é proporcional via `(pixel * 7) / 255`. No modo de desenho, o cursor é exibido como uma cruz vermelha de ±3 pixels, e o traço do usuário é preenchido pelo algoritmo de Bresenham com espessamento de bloco 8×8.
 
 ### Throughput e Latência de Hardware
 
-O co-processador opera a **50 MHz** (período de 20 ns). A medição de latência no Modo 3 utiliza `clock_gettime(CLOCK_MONOTONIC)` com resolução de nanossegundos, isolando exclusivamente o tempo de resposta do hardware desde o envio da instrução `START` até a leitura do sinal `done`.
+O co-processador opera a **50 MHz** (período de 20 ns). A medição de latência no Modo 3 usa `clock_gettime(CLOCK_MONOTONIC)` com resolução de nanossegundos, isolando exclusivamente o tempo de resposta do hardware entre a instrução `START` e a leitura do `done`.
 
-| Métrica                   | Referência                                    |
-|:--------------------------|:----------------------------------------------|
-| Ciclos médios por inferência | ~610.580 ciclos (≈ 12,2 ms a 50 MHz)      |
-| Resolução do timer de software | Nanossegundos (`CLOCK_MONOTONIC`)       |
-| Espessamento de traço (Modo 2) | Pixel central + 4 vizinhos (cruz 3×3)  |
-| Amplificação da imagem na VGA  | Cada pixel 28×28 → bloco 8×8 na tela   |
+| Métrica                         | Referência                                           |
+|:--------------------------------|:-----------------------------------------------------|
+| Ciclos médios por inferência    | ~610.580 ciclos (≈ 12,2 ms a 50 MHz)                |
+| Resolução do timer de software  | Nanossegundos (`CLOCK_MONOTONIC`)                    |
+| Atraso de exibição VGA (Modos 1/4) | 2 segundos (`ATRASO_VGA_S = 2`)                 |
+| Atraso de exibição VGA (Modo 3) | 1 segundo (`ATRASO_VGA_S / 2`)                      |
+| Espessamento de traço (Modo 2)  | Pixel central + 4 vizinhos na grade 28×28            |
+| Bloco de desenho na tela VGA    | 8×8 pixels por célula da grade                      |
 
 ### Flags de Status
 

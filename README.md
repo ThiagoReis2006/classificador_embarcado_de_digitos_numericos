@@ -1396,7 +1396,7 @@ python3 scriptParaTeste.py
 ## Estrutura de Arquivos
 
 ```
-Driver/
+Projeto Completo/
 ├── include/
 │   ├── APIdriverFPGA.h         # Declarações C das funções Assembly (inclui enviarPixelVGA)
 │   ├── dados_imagem.h          # Imagens de teste embutidas (ex: imagem7)
@@ -1417,6 +1417,10 @@ Driver/
 ├── driver_fpga                 # Executável final gerado pelo make
 ├── makefile                    # Script de build (gcc + flags -lm -lrt)
 └── scriptParaTeste.py          # Script Python para gerar dataset.txt
+
++
+
+Para simplificar, o projeto completo está nesta pasta, com Núcleo + Driver + Aplicação em C + VGA.
 ```
 
 ---

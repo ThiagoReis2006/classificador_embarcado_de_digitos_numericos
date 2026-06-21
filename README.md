@@ -933,14 +933,14 @@ PATTERSON, David A.; HENNESSY, John L. Computer Organization and Design: The Har
 
 ## Visão Geral e Levantamento de Requisitos
 
-Neste marco, o problema central é a construção da camada de software completa em linguagem C que integra a experiência do usuário ao sistema de hardware acelerado. O desafio consiste em unir três frentes simultâneas: o controle de periféricos físicos (monitor VGA e mouse), a comunicação eficiente com o co-processador neural via MMIO e a geração de métricas estatísticas auditáveis. A solução implementa quatro modos funcionais distintos com uma interface de menu interativo em linha de comando.
+Neste marco, o problema central é a construção da camada de software completa em linguagem C que integra a experiência do usuário ao sistema de hardware. O desafio consiste em unir três frentes simultâneas: o controle de periféricos físicos (monitor VGA e mouse), a comunicação eficiente com o co-processador neural via MMIO e a geração de métricas estatísticas. A solução implementa quatro modos funcionais distintos com uma interface de menu interativo em linha de comando.
 
 O Marco 03 exige uma aplicação em C que, sobre o driver construído no Marco 02, implemente:
 
 - Integração e uso correto do IP-Core VGA para renderização de imagens no monitor.
-- **Modo 1** — Carregamento e inferência de imagem a partir de arquivo (`.png`).
+- **Modo 1** — Carregamento e inferência de imagem a partir de arquivo (`.png`), exibindo a imagem no VGA.
 - **Modo 2** — Captura de desenho livre do usuário via mouse com exibição em tempo real na tela VGA.
-- **Modo 3** — Execução automatizada em lote para validação e coleta de métricas de desempenho.
+- **Modo 3** — Execução automatizada em lote de diferentes imagens para validação e coleta de métricas de desempenho (exibindo também as imagens no VGA).
 - **Modo 4** — Execução repetida da inferência de uma imagem fixa para validação de estabilidade.
 - Carregamento dinâmico de pesos, bias e beta a partir de arquivos de texto via menu.
 - Implementação de rotinas para captura de eventos do mouse (`/dev/input/event0`).
@@ -950,7 +950,7 @@ O Marco 03 exige uma aplicação em C que, sobre o driver construído no Marco 0
 Além disso, o enunciado exige para o repositório do Marco 03:
 
 - Código C completo e comentado do `interface.c` com os quatro modos operacionais.
-- Integração do IP-Core VGA via novo registrador PIO e nova função Assembly `enviarPixelVGA`.
+- Integração do IP-Core VGA via novo registrador PIO (`vga_pio_data`) e nova função Assembly `enviarPixelVGA`.
 - Biblioteca auxiliar `stb_image.h` para leitura de arquivos PNG.
 - Arquivos de saída CSV gerados automaticamente pelo Modo 3.
 - README com detalhamento da solução, ambiente, testes e análise dos resultados.
@@ -975,7 +975,7 @@ O sistema do Marco 03 é organizado em quatro camadas cooperativas. A camada de 
 │   │            │             │     │             │             │    │
 │   │  ┌─────────▼──────────┐  │     │  ┌──────────▼──────────┐  │    │
 │   │  │  DriverAcelerador  │  │     │  │  controller_vga_sd  │  │    │
-│   │  │ (Assembly + VGA fn)│  │     │  │  (IP-Core VGA + PLL)│  │    │
+│   │  │ (Assembly + "VGA") │  │     │  │  (IP-Core VGA + PLL)│  │    │
 │   │  └─────────┬──────────┘  │     │  └──────────┬──────────┘  │    │
 │   │            │   MMAP      │     │             │             │    │
 │   └────────────┼─────────────┘     └─────────────┼─────────────┘    │
@@ -1029,10 +1029,10 @@ A estrutura de hardware de vídeo é composta por três módulos que atuam em co
 Cada escrita nesse único registrador atualiza simultaneamente a cor, a posição e o comando de escrita de um pixel na tela VGA. O layout dos campos é o seguinte:
 
 ```
-  Bit:  31       26  25    17  16     9   8    6   5    3   2    0
+  Bit:  31           25    17  16     9   8    6   5    3   2    0
         ┌──────────┬──────────┬─────────┬────────┬────────┬────────┐
         │vga_enable│ vga_posx │ vga_posy│vga_red │vga_grn │vga_blu │
-        │  [1 bit] │  [9:0]   │  [8:0]  │ [2:0]  │ [2:0]  │ [2:0]  │
+        │  [1 bit] │  [8:0]   │  [7:0]  │ [2:0]  │ [2:0]  │ [2:0]  │
         └──────────┴──────────┴─────────┴────────┴────────┴────────┘
 ```
 
@@ -1052,7 +1052,7 @@ uint32_t pacote = (1 << 31) | (x << 17) | (y << 9) | (r << 6) | (g << 3) | b;
 enviarPixelVGA(ptr_vga, pacote);
 ```
 
-O array bidimensional `tela_virtual[240][320]` (tipo `uint16_t`) atua como um framebuffer em software, guardando o estado de cor de cada pixel no formato `(r << 6) | (g << 3) | b` para possibilitar a restauração quando o cursor passa por cima do conteúdo desenhado.
+O array bidimensional `tela_virtual[240][320]` (tipo `uint16_t`) atua como um framebuffer em software, guardando o estado de cor de cada pixel no formato `(r << 6) | (g << 3) | b` para possibilitar a restauração quando o cursor passa por cima do conteúdo desenhado, ou seja, ele memoriza o fundo da tela e restaura toda vez que o mouse (cursor) se move.
 
 ---
 
@@ -1228,7 +1228,7 @@ Abre `/dev/input/event0` com `O_RDONLY | O_NONBLOCK`. Inicializa o cursor no cen
 Quando não há eventos (`usleep(1000)`), se `moveu=1`, apaga o cursor na posição antiga, interpola a linha (se desenhando) e redesenha o cursor na nova posição.
 
 #### `desenhar_linha(ptr_vga, x0, y0, x1, y1)`
-Implementa o **Algoritmo de Bresenham** para preencher os pixels intermediários entre a posição anterior e a nova posição do mouse, garantindo traços contínuos mesmo com movimentos rápidos. Para cada ponto da trajetória, chama `registrar_ponto`.
+Implementa o Algoritmo de Bresenham (que funciona calculando um "erro de inclinação acumulado" a cada passo; quando esse erro atinge um certo limite, o algoritmo decide instantaneamente se o próximo pixel a ser pintado deve ir em frente ou pular para a próxima linha/coluna, criando um traço contínuo) para preencher os pixels intermediários entre a posição anterior e a nova posição do mouse, garantindo traços contínuos mesmo com movimentos rápidos. Para cada ponto da trajetória, chama `registrar_ponto`.
 
 #### `registrar_ponto(ptr_vga, mouse_x, mouse_y)`
 Realiza o **mapeamento inverso** da tela para a grade 28×28. Quando o mouse está dentro da região de desenho `x=[48,271], y=[8,231]`, calcula a célula da grade `nn_x = (mouse_x - 48) / 8` e `nn_y = (mouse_y - 8) / 8` e pinta o bloco 8×8 correspondente inteiramente de branco na tela VGA. No vetor `imagem_desenhada`, marca o pixel central e os 4 pixels vizinhos (acima, abaixo, esquerda, direita) com o valor `255`, aplicando o espessamento de traço.
@@ -1286,7 +1286,7 @@ Calculadas ao final do lote no Modo 3:
 |:------------------------------|:----------------------------------------------------------|
 | `id`                          | Índice sequencial da imagem no lote                       |
 | `imagem`                      | Caminho do arquivo PNG processado                         |
-| `classe_real`                 | Dígito real esperado (ground truth)                       |
+| `classe_real`                 | Dígito real esperado                                      |
 | `classe_predita`              | Dígito retornado pelo co-processador                      |
 | `ciclos_hardware`             | Contador de ciclos de clock do hardware                   |
 | `latencia_software_segundos`  | Tempo de inferência medido em segundos (9 casas decimais) |
@@ -1358,8 +1358,8 @@ enviarPesos(ptr, vetor_W_in)   ← parâmetros carregados UMA VEZ
                 │
         ┌───────┼───────┬───────┬───────┐
         ▼       ▼       ▼       ▼       ▼
-    Modo 1  Modo 2  Modo 3  Modo 4  Op.5/6/7
-  (arquivo)(mouse) (batch)(fixo N) (pesos)
+     Modo 1  Modo 2  Modo 3  Modo 4  Op.5/6/7
+  (arquivo) (mouse) (benchmark)(fixo N) (pesos)
         │       │       │       │       │
         └───────┴───────┴───────┴───────┘
                         │
@@ -1382,7 +1382,7 @@ src/dataset_teste/199_2.png 2
 ...
 ```
 
-As imagens seguem a convenção de nomenclatura `{id_mnist}_{classe}.png` e residem em `src/dataset_teste/`. O dataset de exemplo fornecido contém 99 imagens cobrindo os dígitos de 0 a 9.
+As imagens seguem a convenção de nomenclatura `{id_mnist}_{classe}.png` e residem em `src/dataset_teste/`. O dataset de exemplo fornecido contém 100 imagens cobrindo os dígitos de 0 a 9.
 
 O script `scriptParaTeste.py` automatiza a geração do `dataset.txt` a partir de uma pasta organizada por subpastas de classe (0 a 9), respeitando um limite configurável de imagens por dígito (`LIMITE_POR_CLASSE = 200`):
 
@@ -1474,7 +1474,7 @@ Execute o programa:
 Escolha uma opção:
 ```
 
-### Saída Esperada — Modo 1
+### Saída Esperada — Modos 1 e 4 (no 4 é a mesma saída repetida várias vezes)
 
 ```
 Digite o caminho da imagem: ./src/dataset_teste/301_7.png
@@ -1488,11 +1488,50 @@ Resetando hardware...
 |-------------------------|
 | Resultado: 7
 | Erro: 0
-| Ciclos de clock: 610580
+| Ciclos de clock: 837388
 | Done: 1
 |-------------------------|
 ```
+### Saída Esperada — Modo 2
 
+```
+=== VISUALIZACAO DA MATRIZ (28x28) ===
+........................................................
+........................................................
+........................................................
+........................................................
+........................XXXXXXXX........................
+....................XXXXXXXXXXXXXXXX....................
+..................XXXXXX........XXXXXX..................
+................XXXX................XXXX................
+................XXXX................XXXX................
+................XXXX................XXXX................
+..................XXXXXX........XXXXXX..................
+....................XXXXXXXXXXXXXXXX....................
+........................XXXXXXXX........................
+....................XXXXXXXXXXXXXXXX....................
+..................XXXXXX........XXXXXX..................
+................XXXX................XXXX................
+..............XXXX....................XXXX..............
+..............XXXX....................XXXX..............
+..............XXXX....................XXXX..............
+..............XXXX....................XXXX..............
+................XXXX................XXXX................
+..................XXXXXX........XXXXXX..................
+....................XXXXXXXXXXXXXXXX....................
+........................XXXXXXXX........................
+........................................................
+........................................................
+........................................................
+........................................................
+======================================
+
+|--- RESULTADO DO SEU DESENHO ---|
+| Predicao : 8
+| Erro     : 0
+| Ciclos   : 837388
+|--------------------------------|
+```
 ### Saída Esperada — Modo 3
 
 ```
@@ -1503,13 +1542,13 @@ Iniciando processamento em lote...
 ============================================================
               RELATÓRIO FINAL DE BENCHMARK
 ============================================================
- Total de imagens processadas : 99
- Total de acertos             : 94
- Acurácia Global              : 94.95 %
+ Total de imagens processadas : 100
+ Total de acertos             : 80
+ Acurácia Global              : 80.00 %
 ------------------------------------------------------------
- Latência Média de Software   : 0.000121s (0.12 ms)
- Desvio Padrão da Latência    : 0.000003s
- Throughput (Vazão)           : 8264.46 imagens/segundo
+ Latência Média de Software   : 0.01675018s (16.75 ms)
+ Desvio Padrão da Latência    : 0.000015s
+ Throughput (Vazão)           : 59.70 imagens/segundo
 ============================================================
 Resultados detalhados salvos em 'benchmark_resultados.csv'
 ```
@@ -1535,11 +1574,11 @@ A imagem de entrada 28×28 é exibida no monitor com ampliação de 8×8, ocupan
 
 ### Throughput e Latência de Hardware
 
-O co-processador opera a **50 MHz** (período de 20 ns). A medição de latência no Modo 3 usa `clock_gettime(CLOCK_MONOTONIC)` com resolução de nanossegundos, isolando exclusivamente o tempo de resposta do hardware entre a instrução `START` e a leitura do `done`.
+A medição de latência no Modo 3 usa `clock_gettime(CLOCK_MONOTONIC)` com resolução de nanossegundos, isolando exclusivamente o tempo de resposta do hardware entre a instrução `START` e a leitura do `done`.
 
 | Métrica                         | Referência                                           |
 |:--------------------------------|:-----------------------------------------------------|
-| Ciclos médios por inferência    | ~610.580 ciclos (≈ 12,2 ms a 50 MHz)                |
+| Ciclos médios por inferência    | ~837.388 ciclos               |
 | Resolução do timer de software  | Nanossegundos (`CLOCK_MONOTONIC`)                    |
 | Atraso de exibição VGA (Modos 1/4) | 2 segundos (`ATRASO_VGA_S = 2`)                 |
 | Atraso de exibição VGA (Modo 3) | 1 segundo (`ATRASO_VGA_S / 2`)                      |

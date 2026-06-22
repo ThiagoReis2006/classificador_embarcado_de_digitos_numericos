@@ -1599,6 +1599,20 @@ A medição de latência no Modo 3 usa `clock_gettime(CLOCK_MONOTONIC)` com reso
 
 ---
 
+### Métricas obtidas com 100 imagens processadas
+
+| Métrica                         | Valores obtidos                                      |
+|:--------------------------------|:-----------------------------------------------------|
+| Acurácia                        | 80%                                                  |
+| Latência Média                  | 0.016752 segundos (16.75 ms)                         |
+| Desvio                          | 0.000015 segundos                                    |
+| Throughput                      | 59.69 Img/s                                          |
+-----------------------------------------------------------------------------------------|
+
+### Arquivos CSV das métricas e dos resultados obtidos do projeto
+- 📄 [Aceder ao Log Completo das métricas (CSV)](./benchmark_métricas.csv)
+- 📄 [Aceder ao Log Completo de Resultados (CSV)](./benchmark_resultados.csv)
+
 ## Referências
 
 PATTERSON, David A.; HENNESSY, John L. *Computer Organization and Design: The Hardware/Software Interface*. ARM® Edition. San Francisco: Morgan Kaufmann, 2016.

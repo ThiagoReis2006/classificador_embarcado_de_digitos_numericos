@@ -1559,7 +1559,7 @@ Resultados detalhados salvos em 'benchmark_resultados.csv'
 
 ---
 
-## Resultados Alcançados
+## Resultados Alcançados e Métricas
 
 ### Ambiente de Execução
 
@@ -1607,10 +1607,15 @@ A medição de latência no Modo 3 usa `clock_gettime(CLOCK_MONOTONIC)` com reso
 | Latência Média                  | 0.016752 segundos (16.75 ms)                         |
 | Desvio                          | 0.000015 segundos                                    |
 | Throughput                      | 59.69 Img/s                                          |
+---
 
 ### Arquivos CSV das métricas e dos resultados obtidos do projeto
 - 📄 [Aceder ao Log Completo das métricas (CSV)](./Projeto%20Completo/benchmark_métricas.csv)
 - 📄 [Acessar o Log Completo dos Resultados (CSV)](./Projeto%20Completo/benchmark_resultados.csv)
+
+## Análise dos resultados obtidos
+
+O projeto desenvolvido obteve ótimos resultados, visto que o projeto obteve uma acurácia de 80% com 100 imagens processadas em um período curto de tempo. O projeto cumpriu todos os requisitos solicitados, fazendo uma ligação desde a interface com o usuário até o processamento dos dados no coprocessador. No desenvolvimento do marco, o principal problema encontrado foi como implementar a função de desenhar um número na VGA e obter assim o número predito. A soluçao obtida foi implementar mais uma rotina em assembly e assim controlar todo o sistema do VGA através dessa rotina. A melhoria tentada no marco era implementar os tons de cinza na parte do desenho, dessa forma melhoraria um pouco na precisão do número desenhado, mas essa melhoria não foi cumprida.
 
 ## Referências
 

@@ -1607,7 +1607,6 @@ A medição de latência no Modo 3 usa `clock_gettime(CLOCK_MONOTONIC)` com reso
 | Latência Média                  | 0.016752 segundos (16.75 ms)                         |
 | Desvio                          | 0.000015 segundos                                    |
 | Throughput                      | 59.69 Img/s                                          |
------------------------------------------------------------------------------------------|
 
 ### Arquivos CSV das métricas e dos resultados obtidos do projeto
 - 📄 [Aceder ao Log Completo das métricas (CSV)](./Projeto%20Completo/benchmark_métricas.csv)

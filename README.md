@@ -1610,8 +1610,8 @@ A medição de latência no Modo 3 usa `clock_gettime(CLOCK_MONOTONIC)` com reso
 -----------------------------------------------------------------------------------------|
 
 ### Arquivos CSV das métricas e dos resultados obtidos do projeto
-- 📄 [Aceder ao Log Completo das métricas (CSV)](./benchmark_métricas.csv)
-- 📄 [Aceder ao Log Completo de Resultados (CSV)](./Projeto Completo/benchmark_resultados.csv)
+- 📄 [Aceder ao Log Completo das métricas (CSV)](./Projeto%20Completo/benchmark_métricas.csv)
+- 📄 [Acessar o Log Completo dos Resultados (CSV)](./Projeto%20Completo/benchmark_resultados.csv)
 
 ## Referências
 
